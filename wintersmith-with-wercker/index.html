@@ -1,0 +1,59 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Deploy anything to GitHub Pages with wercker</title><link rel="stylesheet" href="/style/main.css"><link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic"></head><body><header><div class="layout"><a href="/"><h1 class="logo">luke vivier</h1></a></div></header><section role="main"><div class="layout"><article class="post"><header><a rel="self" href="/wintersmith-with-wercker/"><h1>Deploy anything to GitHub Pages with wercker</h1></a></header><footer><time datetime="2013-07-30T00:00:00.000Z">Tuesday July 30th, 2013</time></footer><aside class="share"><ul class="shareicons"><li data-icon="t"><a href="http://twitter.com/intent/tweet?url=http://luke.vivier.ca/wintersmith-with-wercker/&amp;text=Deploy%20anything%20to%20GitHub%20Pages%20with%20wercker">tweet this</a></li><li data-icon="f"><a href="http://www.facebook.com/sharer.php?u=http://luke.vivier.ca/wintersmith-with-wercker/&amp;t=Deploy%20anything%20to%20GitHub%20Pages%20with%20wercker">share this</a></li></ul></aside><p>GitHub Pages is ideal for hosting project sites and personal blogs. In terms of publishing tools, support is limited to Jekyll, or plain static HTML. If Jekyll doesn’t cut it for you, then you gotta do it <em>custom</em>. Enter wercker.</p>
+<p><a href="http://wercker.com/">Wercker</a> is a hosted continuous integration and deployment platform that allows you to set up custom test and deploy pipelines for all your projects. It integrates with GitHub, and supports ruby, python, and node apps with minimal configuration.</p>
+<p>For my site at <a href="http://luke.vivier.ca/">luke.vivier.ca</a>, I&#39;ve decided to use <a href="http://wintersmith.io/">wintersmith</a> as my publishing tool. Wintersmith is a super-powered static site generator with an amazingly adaptable plugin system, great docs, and a budding community. It&#39;s a node app, and uses jade and markdown out of the box. </p>
+<p>Using my wintersmith site as a template, we&#39;ll walk through the steps to set up wercker to deploy a freshly-built version of your static site every time you push to GitHub.</p>
+<h2>Sign up for wercker</h2>
+<p>Signing up for wercker is dead easy. Just go to <a href="http://wercker.com/">wercker.com</a> and register. Once you&#39;ve signed up, add your site as an application on wercker. From the home page, click <em>Add an application</em> and follow the prompts. You‘ll have to sign in to GitHub, choose your site’s GitHub repo, and add “werckerbot” as a collaborator.</p>
+<h2>Building</h2>
+<p>Wercker‘s build configuration is easily customizable. I’ll detail the wintersmith build command below, but any other static site builder like hyde, Middleman, or nanoc is usable, as long as it outputs static HTML.</p>
+<p>Before you proceed, make sure you have wintersmith and any plugins added to your <code>package.json</code>.</p>
+<p>To configure itself, wercker looks for a file called <code>wercker.yml</code> in the root of your repo. Add one with these contents:</p>
+<pre><code class="lang-yaml">box: wercker/nodejs
+build:
+  steps:
+    - npm-install
+    - script:
+        name: wintersmith build
+        code: ./node_modules/.bin/wintersmith build -o ./build</code></pre>
+<p>When wercker builds your site, it will clone your GitHub repo to a virtual machine (the <code>box: wercker/nodejs</code> part), then run each build step in order. The first step runs <code>$ npm install</code> on the project. The second step executes the wintersmith build command and places the output in the “build” directory.</p>
+<h2>Set up deployment</h2>
+<p>Before we set up a deploy target, we need a Personal API Access Token. Go to the <a href="https://github.com/settings/applications">Applications page</a> in your account settings on GitHub. Click on <em>Create new token</em>, and copy the token that appears.</p>
+<figure>
+  <img src="/wintersmith-with-wercker/github-tokens.png" alt="Personal API Access Token dialog on GitHub">
+  <figcaption>
+    Access token dialog on GitHub.
+  </figcaption>
+</figure>
+
+<p>Now create a deploy target on wercker. Go to the Settings tab for your application, click <em>Add deploy target</em>, and choose <em>custom deploy</em>. Give it a name, and enable <em>auto deploy successful builds to branches</em> (add “master”). Add an environment variable and paste the access token from GitHub as the value.</p>
+<figure>
+  <img src="/wintersmith-with-wercker/wercker-deploy-target.png" alt="Add deploy target dialog on wercker">
+  <figcaption>
+    Add deploy target dialog on wercker.
+  </figcaption>
+</figure>
+
+<p>Now we&#39;ll add a deploy step to <code>wercker.yml</code>:</p>
+<pre><code class="lang-yaml">deploy:
+  steps:
+    - lukevivier/gh-pages:
+        token: $GH_TOKEN
+        basedir: build
+        domain: luke.vivier.ca</code></pre>
+<p>We&#39;re using the <code>gh-pages</code> step that I wrote for the <a href="http://devcenter.wercker.com/articles/directory/">wercker directory</a>. It automates some of the tedious parts of publishing to GitHub Pages. Use the environment variable we added to the deploy target as the value of <code>token</code>. This is so we don&#39;t store your top secret access token in a public place. Set <code>basedir</code> to “build”, the directory we told wintersmith to store output in.</p>
+<h3>Custom domains</h3>
+<p>Add a <code>domain</code> option to the deploy step if you want a <a href="https://help.github.com/articles/setting-up-a-custom-domain-with-pages">custom domain</a> file to be created for you automatically.</p>
+<h2>Deploy!</h2>
+<p>Commit <code>wercker.yml</code> and push it up to GitHub. On wercker, the Builds tab for your application should show the build in process. If you enabled auto deploy on the deploy target, it will start as soon as the build passes. Otherwise, click on the build and select your target from <em>Deploy this build</em> dropdown. After a few moments, your wintersmith site is deployed to the <code>gh-pages</code> branch on GitHub.</p>
+<figure>
+  <img src="/wintersmith-with-wercker/wercker-deploy.png" alt="Manually deploying a build on wercker">
+  <figcaption>
+    Manually deploying a build on wercker.
+  </figcaption>
+</figure>
+
+<p>Voila! Now you can use any static site builder with your project sites and have them deployed automatically when you push to GitHub.</p>
+</article></div></section><footer><div class="layout"><section id="bio"><p><em>Hi, I'm Luke.</em> I write code and build products for the web 
+in Vancouver, BC. JavaScript, CoffeeScript, CSS, HTTP are my 
+weapons of choice. Blogging about education, business, and 
+architecture.</p></section><section class="contact"><ul class="shareicons"><li data-icon="t"><a href="http://twitter.com/LukeVivier">follow me on twitter</a></li><li data-icon="g"><a href="https://github.com/lvivier">hot forking action</a></li><li data-icon="m"><a href="mailto:luke@vivier.ca">email me</a></li></ul></section><section class="contact"><ul class="shareicons"><li data-icon="r"><a href="http://www.rdio.com/people/lukevivier/">follow me on rdio</a></li><li data-icon="i"><a href="http://instagram.com/lukevivier/">look at this instagram</a></li><li data-icon="o"><a href="https://foursquare.com/user/42829265">stalk me on foursquare</a></li></ul></section><small data-icon="cp">&nbsp;Licensed under a Creative Commons Attribution 3.0 Unported License.</small></div></footer></body></html>
